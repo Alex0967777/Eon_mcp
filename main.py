@@ -1,16 +1,7 @@
 from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
-import uvicorn
 import json
 
 app = FastAPI()
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
 
 @app.post("/search")
 async def search_endpoint(request: Request):
@@ -21,9 +12,9 @@ async def search_endpoint(request: Request):
         "results": [
             {
                 "id": "result-1",
-                "title": "Test result",
+                "title": f"Test result",
                 "description": f"Result for query: {query}",
-                "url": "https://example.com"
+                "url": "https://eon-mcp.fly.dev/resource/result-1"
             }
         ]
     }
@@ -36,6 +27,7 @@ async def search_endpoint(request: Request):
             }
         ]
     }
+
 
 @app.post("/fetch")
 async def fetch_endpoint(request: Request):
@@ -56,7 +48,7 @@ async def fetch_endpoint(request: Request):
         "id": ids[0],
         "title": f"Document {ids[0]}",
         "text": f"Full content for document {ids[0]}",
-        "url": "https://example.com"
+        "url": f"https://eon-mcp.fly.dev/resource/{ids[0]}"
     }
 
     return {
@@ -67,21 +59,3 @@ async def fetch_endpoint(request: Request):
             }
         ]
     }
-
-@app.get("/sse")
-async def sse():
-    return EventSourceResponse(hello_stream())
-
-from sse_starlette.sse import EventSourceResponse
-import asyncio
-
-async def hello_stream():
-    while True:
-        yield {
-            "event": "message",
-            "data": json.dumps({"type": "hello", "message": "MCP server ready"})
-        }
-        await asyncio.sleep(10)
-
-if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000)
