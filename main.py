@@ -1,61 +1,69 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 import json
 
 app = FastAPI()
 
+# Allow all CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# SSE queue
 event_queue = asyncio.Queue()
 
-@app.get("/sse")
-async def sse_endpoint():
-    async def event_generator():
-        yield f"retry: 10000\ndata: {json.dumps({'type': 'hello', 'message': 'MCP server ready'})}\n\n"
-        while True:
-            data = await event_queue.get()
-            yield f"data: {json.dumps(data)}\n\n"
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
-
 @app.post("/search")
-async def search(request: Request):
+async def search_endpoint(request: Request):
     query = await request.json()
-    search_results = {
+    results = {
         "results": [
             {
                 "id": "result-1",
                 "title": f"Результат по запросу: {query.get('query', '')}",
-                "url": "https://example.com/doc1"
+                "description": "Описание результата",
+                "url": "https://example.com"
             }
         ]
     }
-
     return {
         "content": [
             {
                 "type": "text",
-                "text": json.dumps(search_results, ensure_ascii=False)
+                "text": json.dumps(results, ensure_ascii=False)
             }
         ]
     }
 
 @app.post("/fetch")
-async def fetch(request: Request):
+async def fetch_endpoint(request: Request):
     body = await request.json()
-    doc_id = body.get("ids", ["result-1"])[0]
+    ids = body.get("ids", [])
 
-    document = {
-        "id": doc_id,
-        "title": f"Документ {doc_id}",
-        "text": f"Контент документа с ID: {doc_id}",
-        "url": f"https://example.com/{doc_id}",
-        "metadata": {}
-    }
+    documents = [
+        {
+            "id": doc_id,
+            "title": f"Документ {doc_id}",
+            "text": f"Контент документа с ID: {doc_id}",
+            "url": "https://example.com"
+        } for doc_id in ids
+    ]
 
     return {
         "content": [
             {
                 "type": "text",
-                "text": json.dumps(document, ensure_ascii=False)
+                "text": json.dumps(documents[0], ensure_ascii=False)  # Только первый документ, как требует MCP
             }
         ]
     }
+
+@app.get("/sse")
+async def sse():
+    async def event_generator():
+        yield f"retry: 10000\ndata: {{\"type\": \"hello\", \"message\": \"MCP server ready\"}}\n\n"
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
