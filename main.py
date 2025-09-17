@@ -33,3 +33,10 @@ async def receive_event(request: Request):
     data = await request.json()
     await event_queue.put(str(data))
     return JSONResponse({"status": "received", "echo": data})
+    
+if __name__ == "__main__":
+    import uvicorn
+    import os
+
+    port = int(os.environ.get("PORT", 8080))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=False)
