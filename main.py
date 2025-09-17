@@ -14,6 +14,35 @@ app.add_middleware(
 
 event_queue = asyncio.Queue()
 
+@app.post("/search")
+async def search_endpoint(request: Request):
+    query = await request.json()
+    # Можешь здесь сделать что угодно: запрос к БД, апишке и т.д.
+    # Сейчас просто тестовый ответ
+    return {
+        "results": [
+            {
+                "id": "result-1",
+                "title": f"Результат по запросу: {query.get('query', '')}",
+                "description": "Описание результата",
+            }
+        ]
+    }
+
+@app.post("/fetch")
+async def fetch_endpoint(request: Request):
+    body = await request.json()
+    ids = body.get("ids", [])
+    # Возвращаем "документы" по ID (заглушка)
+    return {
+        "documents": [
+            {
+                "id": id_,
+                "content": f"Контент документа с ID: {id_}"
+            }
+            for id_ in ids
+        ]
+    }
 @app.get("/")
 async def root():
     return {"status": "Eon MCP server running."}
