@@ -1,12 +1,10 @@
 from fastapi import FastAPI, Request
-from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
-import asyncio
+import uvicorn
 import json
 
 app = FastAPI()
 
-# Allow all CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -14,27 +12,27 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# SSE queue
-event_queue = asyncio.Queue()
-
 @app.post("/search")
 async def search_endpoint(request: Request):
-    query = await request.json()
+    body = await request.json()
+    query = body.get("query", "")
+
     results = {
         "results": [
             {
                 "id": "result-1",
-                "title": f"Результат по запросу: {query.get('query', '')}",
-                "description": "Описание результата",
+                "title": "Test result",
+                "description": f"Result for query: {query}",
                 "url": "https://example.com"
             }
         ]
     }
+
     return {
         "content": [
             {
                 "type": "text",
-                "text": json.dumps(results, ensure_ascii=False)
+                "text": json.dumps(results)
             }
         ]
     }
@@ -44,26 +42,46 @@ async def fetch_endpoint(request: Request):
     body = await request.json()
     ids = body.get("ids", [])
 
-    documents = [
-        {
-            "id": doc_id,
-            "title": f"Документ {doc_id}",
-            "text": f"Контент документа с ID: {doc_id}",
-            "url": "https://example.com"
-        } for doc_id in ids
-    ]
+    if not ids:
+        return {
+            "content": [
+                {
+                    "type": "text",
+                    "text": json.dumps({})
+                }
+            ]
+        }
+
+    doc = {
+        "id": ids[0],
+        "title": f"Document {ids[0]}",
+        "text": f"Full content for document {ids[0]}",
+        "url": "https://example.com"
+    }
 
     return {
         "content": [
             {
                 "type": "text",
-                "text": json.dumps(documents[0], ensure_ascii=False)  # Только первый документ, как требует MCP
+                "text": json.dumps(doc)
             }
         ]
     }
 
 @app.get("/sse")
 async def sse():
-    async def event_generator():
-        yield f"retry: 10000\ndata: {{\"type\": \"hello\", \"message\": \"MCP server ready\"}}\n\n"
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+    return EventSourceResponse(hello_stream())
+
+from sse_starlette.sse import EventSourceResponse
+import asyncio
+
+async def hello_stream():
+    while True:
+        yield {
+            "event": "message",
+            "data": json.dumps({"type": "hello", "message": "MCP server ready"})
+        }
+        await asyncio.sleep(10)
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", port=8000)
